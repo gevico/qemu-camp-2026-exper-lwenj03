@@ -5,6 +5,7 @@ gen = [
   decodetree.process('xthead.decode', extra_args: '--static-decode=decode_xthead'),
   decodetree.process('XVentanaCondOps.decode', extra_args: '--static-decode=decode_XVentanaCodeOps'),
   decodetree.process('xmips.decode', extra_args: '--static-decode=decode_xmips'),
+  decodetree.process('xg233ai.decode', extra_args: '--static-decode=decode_xg233ai'),
 ]
 
 riscv_ss = ss.source_set()
@@ -27,7 +28,8 @@ riscv_ss.add(files(
   'm128_helper.c',
   'crypto_helper.c',
   'zce_helper.c',
-  'vcrypto_helper.c'
+  'vcrypto_helper.c',
+  'xg233ai_helper.c'
 ))
 
 riscv_system_ss = ss.source_set()
@@ -37,6 +39,7 @@ riscv_system_ss.add(files(
   'debug.c',
   'monitor.c',
   'machine.c',
+  'gevico_csr.c',
   'mips_csr.c',
   'pmu.c',
   'th_csr.c',

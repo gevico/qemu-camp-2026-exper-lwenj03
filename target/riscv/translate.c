@@ -1226,6 +1226,8 @@ static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
 
 /* Include decoders for factored-out extensions */
 #include "decode-XVentanaCondOps.c.inc"
+#include "decode-xg233ai.c.inc"
+#include "insn_trans/trans_xg233ai.c.inc"
 
 /* The specification allows for longer insns, but not supported by qemu. */
 #define MAX_INSN_LEN  4
@@ -1235,6 +1237,7 @@ const RISCVDecoder decoder_table[] = {
     { has_xmips_p, decode_xmips},
     { has_xthead_p, decode_xthead},
     { has_XVentanaCondOps_p, decode_XVentanaCodeOps},
+    { has_xg233ai_p, decode_xg233ai},
 };
 
 const size_t decoder_table_size = ARRAY_SIZE(decoder_table);

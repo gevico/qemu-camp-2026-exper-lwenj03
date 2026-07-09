@@ -1,0 +1,34 @@
+#
+# RISC-V decode patterns for the Xg233ai custom accelerator extension
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# All instructions use opcode 0x7b (custom-3 space), funct3=6,
+# differentiated by funct7.
+#
+# Encoding: funct7[31:25] rs2[24:20] rs1[19:15] 110[14:12] rd[11:7] 1111011[6:0]
+
+# Fields (re-declared — must match insn32.decode)
+%rd        7:5
+%rs1       15:5
+%rs2       20:5
+
+# Argument sets (imported from insn32.decode)
+&r         rd rs1 rs2   !extern
+
+# Formats
+@xg233ai  .......  ..... ..... ... ..... .......  &r  %rs2 %rs1 %rd
+
+# ── Category A: memory-to-memory (rd=dst_ptr, rs1=src_ptr, rs2=param) ──
+dma       0000110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=6   FP32 matrix transpose
+gemm      0001110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=14  INT32 4x4 matmul
+sort      0010110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=22  INT32 bubble sort
+vadd      0011110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=30  INT32 vector add
+crush     0100110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=38  8→4 bit compress
+expand    0110110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=54  4→8 bit expand
+vrelu     1010110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=86  INT32 vector ReLU
+vscale    1100110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=102 INT32 vector×scalar
+
+# ── Category B: scalar return (rd=out_reg, rs1=src1_ptr, rs2=src2_ptr) ──
+vdot      1000110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=70  INT32 dot product → int64
+vmax      1110110  ..... ..... 110 ..... 1111011  @xg233ai   # funct7=118 INT32 max reduction → int64

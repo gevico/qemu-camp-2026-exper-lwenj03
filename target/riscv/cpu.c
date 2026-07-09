@@ -3375,9 +3375,13 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.ext_zicbop = true,
         .cfg.ext_zicboz = true,
         .cfg.ext_svade = true,
+        .cfg.ext_xg233ai = true,
             .cfg.mmu = true,
             .cfg.pmp = true,
             .cfg.max_satp_mode = VM_1_10_SV48,
+#ifndef CONFIG_USER_ONLY
+        .custom_csrs = gevico_csr_list,
+#endif
     ),
 
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)

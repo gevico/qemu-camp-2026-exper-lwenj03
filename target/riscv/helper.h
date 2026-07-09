@@ -1289,3 +1289,17 @@ DEF_HELPER_4(vsm4r_vs, void, ptr, ptr, env, i32)
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_1(ssamoswap_disabled, void, env)
 #endif
+
+/* Xg233ai custom accelerator helpers */
+/* Category A: memory-to-memory (void, three pointer/operand args) */
+DEF_HELPER_FLAGS_4(xg233ai_dma,    TCG_CALL_NO_WG, void, env, tl, tl, tl)
+DEF_HELPER_FLAGS_4(xg233ai_gemm,   TCG_CALL_NO_WG, void, env, tl, tl, tl)
+DEF_HELPER_FLAGS_4(xg233ai_sort,   TCG_CALL_NO_WG, void, env, tl, tl, tl)
+DEF_HELPER_FLAGS_4(xg233ai_vadd,   TCG_CALL_NO_WG, void, env, tl, tl, tl)
+DEF_HELPER_FLAGS_4(xg233ai_crush,  TCG_CALL_NO_WG, void, env, tl, tl, tl)
+DEF_HELPER_FLAGS_4(xg233ai_expand, TCG_CALL_NO_WG, void, env, tl, tl, tl)
+DEF_HELPER_FLAGS_4(xg233ai_vrelu,  TCG_CALL_NO_WG, void, env, tl, tl, tl)
+DEF_HELPER_FLAGS_4(xg233ai_vscale, TCG_CALL_NO_WG, void, env, tl, tl, tl)
+/* Category B: scalar return (target_ulong, two pointer args) */
+DEF_HELPER_FLAGS_3(xg233ai_vdot,   TCG_CALL_NO_WG, tl,  env, tl, tl)
+DEF_HELPER_FLAGS_3(xg233ai_vmax,   TCG_CALL_NO_WG, tl,  env, tl, tl)
