@@ -30,6 +30,12 @@ config ALLWINNER_A10_PIT
 config PXA2XX_TIMER
     bool
 
+config GEVICO_WDT
+    bool
+
+config GEVICO_PWM
+    bool
+
 config SIFIVE_PWM
     bool
 

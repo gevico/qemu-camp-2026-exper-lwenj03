@@ -162,14 +162,200 @@ static void test_gpio_plic(void)
     qtest_quit(qts);
 }
 
+/*
+ * Edge-triggered, falling polarity: IS set on 1→0 transition.
+ * (The existing test_gpio_edge_rising covers rising edge; this tests §7.3.7
+ *  POL=0 falling-edge path.)
+ */
+static void test_gpio_edge_falling(void)
+{
+    QTestState *qts = qtest_init("-machine g233 -m 2G");
+
+    /* Pin 0: output, edge-triggered, falling polarity, interrupt enabled */
+    qtest_writel(qts, GPIO_DIR,  0x1);
+    qtest_writel(qts, GPIO_TRIG, 0x0);  /* edge */
+    qtest_writel(qts, GPIO_POL,  0x0);  /* falling */
+    qtest_writel(qts, GPIO_IE,   0x1);
+
+    /* Start high — no interrupt yet */
+    qtest_writel(qts, GPIO_OUT, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    /* 1→0 transition → interrupt */
+    qtest_writel(qts, GPIO_OUT, 0x0);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    /* W1C clear */
+    qtest_writel(qts, GPIO_IS, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    qtest_quit(qts);
+}
+
+/*
+ * Level-triggered, low polarity: IS set while pin is low, clears when high.
+ * (The existing test_gpio_level_high covers high level; this tests §7.3.7
+ *  POL=0 low-level path.)
+ */
+static void test_gpio_level_low(void)
+{
+    QTestState *qts = qtest_init("-machine g233 -m 2G");
+
+    qtest_writel(qts, GPIO_DIR,  0x1);
+    qtest_writel(qts, GPIO_TRIG, 0x1);  /* level */
+    qtest_writel(qts, GPIO_POL,  0x0);  /* low */
+    qtest_writel(qts, GPIO_IE,   0x1);
+
+    /* Start high — IS should be 0 (condition not met: OUT=1 != POL=0) */
+    qtest_writel(qts, GPIO_OUT, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    /* Drive low → interrupt active (OUT=0 == POL=0) */
+    qtest_writel(qts, GPIO_OUT, 0x0);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    /* Drive high → interrupt clears */
+    qtest_writel(qts, GPIO_OUT, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    qtest_quit(qts);
+}
+
+/*
+ * For level-triggered pins IS is NOT sticky: writing 1 to clear while the
+ * level condition remains active has no lasting effect — IS re-asserts
+ * immediately (§7.3.5 Note + §7.3.7 level semantics).
+ */
+static void test_gpio_is_w1c_level_reassert(void)
+{
+    QTestState *qts = qtest_init("-machine g233 -m 2G");
+
+    qtest_writel(qts, GPIO_DIR,  0x1);
+    qtest_writel(qts, GPIO_TRIG, 0x1);  /* level */
+    qtest_writel(qts, GPIO_POL,  0x1);  /* high */
+    qtest_writel(qts, GPIO_IE,   0x1);
+
+    /* Drive high — level active, IS=1 */
+    qtest_writel(qts, GPIO_OUT, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    /* Write 1 to clear — IS should immediately re-assert because
+     * the level condition (OUT==POL) is still active. */
+    qtest_writel(qts, GPIO_IS, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    /* Now drive low — IS should clear because condition is gone */
+    qtest_writel(qts, GPIO_OUT, 0x0);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    qtest_quit(qts);
+}
+
+/*
+ * IE gate for level-triggered: enabling IE while the level condition is
+ * already active should immediately set IS.
+ */
+static void test_gpio_ie_enable_level_active(void)
+{
+    QTestState *qts = qtest_init("-machine g233 -m 2G");
+
+    qtest_writel(qts, GPIO_DIR,  0x1);
+    qtest_writel(qts, GPIO_TRIG, 0x1);  /* level */
+    qtest_writel(qts, GPIO_POL,  0x1);  /* high */
+    qtest_writel(qts, GPIO_IE,   0x0);  /* disabled */
+
+    /* Drive high while IE=0 — IS stays 0 */
+    qtest_writel(qts, GPIO_OUT, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    /* Now enable IE while level condition is already active → IS set */
+    qtest_writel(qts, GPIO_IE, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    qtest_quit(qts);
+}
+
+/*
+ * Trigger type change: switching from edge to level while the pin level
+ * matches the polarity should immediately update IS.
+ */
+static void test_gpio_trig_edge_to_level(void)
+{
+    QTestState *qts = qtest_init("-machine g233 -m 2G");
+
+    /* Start edge-triggered, rising */
+    qtest_writel(qts, GPIO_DIR,  0x1);
+    qtest_writel(qts, GPIO_TRIG, 0x0);  /* edge */
+    qtest_writel(qts, GPIO_POL,  0x1);  /* rising */
+    qtest_writel(qts, GPIO_IE,   0x1);
+
+    /* Generate a rising edge → IS=1 */
+    qtest_writel(qts, GPIO_OUT, 0x0);
+    qtest_writel(qts, GPIO_OUT, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    /* Clear the edge-sticky IS */
+    qtest_writel(qts, GPIO_IS, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    /* Switch to level-triggered, high.  Pin is already high → IS set */
+    qtest_writel(qts, GPIO_TRIG, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    /* Switch back to edge-triggered — level IS should be cleared,
+     * and no new edge has occurred. */
+    qtest_writel(qts, GPIO_TRIG, 0x0);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    qtest_quit(qts);
+}
+
+/*
+ * Polarity change for level-triggered: switching POL while the pin level
+ * stays constant should update IS accordingly.
+ */
+static void test_gpio_pol_invert_level(void)
+{
+    QTestState *qts = qtest_init("-machine g233 -m 2G");
+
+    qtest_writel(qts, GPIO_DIR,  0x1);
+    qtest_writel(qts, GPIO_TRIG, 0x1);  /* level */
+    qtest_writel(qts, GPIO_POL,  0x1);  /* high */
+    qtest_writel(qts, GPIO_IE,   0x1);
+
+    /* OUT=1, POL=high → IS=1 */
+    qtest_writel(qts, GPIO_OUT, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    /* Invert polarity to low — OUT=1 != POL=0 → IS=0 */
+    qtest_writel(qts, GPIO_POL, 0x0);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0);
+
+    /* Invert back to high — IS=1 again */
+    qtest_writel(qts, GPIO_POL, 0x1);
+    g_assert_cmpuint(qtest_readl(qts, GPIO_IS) & 0x1, ==, 0x1);
+
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("g233/gpio-int/edge_rising", test_gpio_edge_rising);
+    qtest_add_func("g233/gpio-int/edge_falling", test_gpio_edge_falling);
     qtest_add_func("g233/gpio-int/level_high", test_gpio_level_high);
+    qtest_add_func("g233/gpio-int/level_low", test_gpio_level_low);
     qtest_add_func("g233/gpio-int/is_clear", test_gpio_is_clear);
+    qtest_add_func("g233/gpio-int/is_w1c_level_reassert",
+                   test_gpio_is_w1c_level_reassert);
     qtest_add_func("g233/gpio-int/ie_mask", test_gpio_ie_mask);
+    qtest_add_func("g233/gpio-int/ie_enable_level_active",
+                   test_gpio_ie_enable_level_active);
+    qtest_add_func("g233/gpio-int/trig_edge_to_level",
+                   test_gpio_trig_edge_to_level);
+    qtest_add_func("g233/gpio-int/pol_invert_level",
+                   test_gpio_pol_invert_level);
     qtest_add_func("g233/gpio-int/plic", test_gpio_plic);
 
     return g_test_run();

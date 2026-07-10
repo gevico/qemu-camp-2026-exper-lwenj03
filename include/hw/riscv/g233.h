@@ -94,6 +94,10 @@ enum {
 
 enum {
     UART0_IRQ = 1,
+    GPIO_IRQ = 2,
+    PWM_IRQ = 3,
+    WDT_IRQ = 4,
+    SPI_IRQ = 5,
     VIRTIO_IRQ = 6, /* 6 to 13 */
     VIRTIO_COUNT = 8,
     RTC_IRQ = 14,

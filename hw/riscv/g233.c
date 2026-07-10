@@ -40,6 +40,10 @@
 #include "hw/riscv/numa.h"
 #include "kvm/kvm_riscv.h"
 #include "hw/firmware/smbios.h"
+#include "hw/gpio/gevico_gpio.h"
+#include "hw/timer/gevico_pwm.h"
+#include "hw/timer/gevico_wdt.h"
+#include "hw/ssi/gevico_spi.h"
 #include "hw/intc/riscv_aclint.h"
 #include "hw/intc/riscv_aplic.h"
 #include "hw/intc/sifive_plic.h"
@@ -1714,6 +1718,22 @@ static void virt_machine_init(MachineState *machine)
 
     sysbus_create_simple("goldfish_rtc", s->memmap[VIRT_RTC].base,
         qdev_get_gpio_in(mmio_irqchip, RTC_IRQ));
+
+    /* GPIO controller at 0x1001_2000, PLIC IRQ 2 */
+    sysbus_create_simple(TYPE_GEVICO_GPIO, 0x10012000,
+        qdev_get_gpio_in(mmio_irqchip, GPIO_IRQ));
+
+    /* PWM controller at 0x1001_5000, PLIC IRQ 3 */
+    sysbus_create_simple(TYPE_GEVICO_PWM, 0x10015000,
+        qdev_get_gpio_in(mmio_irqchip, PWM_IRQ));
+
+    /* WDT at 0x1001_0000, PLIC IRQ 4 */
+    sysbus_create_simple(TYPE_GEVICO_WDT, 0x10010000,
+        qdev_get_gpio_in(mmio_irqchip, WDT_IRQ));
+
+    /* SPI controller at 0x1001_8000, PLIC IRQ 5 */
+    sysbus_create_simple(TYPE_GEVICO_SPI, 0x10018000,
+        qdev_get_gpio_in(mmio_irqchip, SPI_IRQ));
 
     for (i = 0; i < ARRAY_SIZE(s->flash); i++) {
         /* Map legacy -drive if=pflash to machine properties */
