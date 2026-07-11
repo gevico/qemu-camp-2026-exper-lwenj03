@@ -24,3 +24,5 @@ test('rust-i2c-unit',
     ],
     protocol: 'rust',
     suite: ['unit', 'rust'])
+
+subdir('gpio')

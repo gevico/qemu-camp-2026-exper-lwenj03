@@ -44,6 +44,8 @@
 #include "hw/timer/gevico_pwm.h"
 #include "hw/timer/gevico_wdt.h"
 #include "hw/ssi/gevico_spi.h"
+#include "hw/i2c/g233_i2c.h"
+#include "hw/ssi/g233_spi.h"
 #include "hw/intc/riscv_aclint.h"
 #include "hw/intc/riscv_aplic.h"
 #include "hw/intc/sifive_plic.h"
@@ -1734,6 +1736,12 @@ static void virt_machine_init(MachineState *machine)
     /* SPI controller at 0x1001_8000, PLIC IRQ 5 */
     sysbus_create_simple(TYPE_GEVICO_SPI, 0x10018000,
         qdev_get_gpio_in(mmio_irqchip, SPI_IRQ));
+
+    /* I2C GPIO controller at 0x1001_3000 (Rust device, internal EEPROM) */
+    g233_i2c_gpio_create(0x10013000);
+
+    /* Rust SPI controller at 0x1001_9000 (Rust device, internal AT25 EEPROM) */
+    g233_rspi_create(0x10019000);
 
     for (i = 0; i < ARRAY_SIZE(s->flash); i++) {
         /* Map legacy -drive if=pflash to machine properties */
